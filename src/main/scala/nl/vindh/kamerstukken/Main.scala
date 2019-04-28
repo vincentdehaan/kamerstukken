@@ -25,6 +25,17 @@ println(parsedArgs)
   println(parsedArgs.get(""))
   parsedArgs.get("dossier") match {
     case Some(num: Int) => println(KamerstukkenScraper.scrapeOneDossier(num))
-    case x => println(s"An error occured: $x")
+    case Some(x) => println(s"An error occured: $x")
+    case None =>
+  }
+
+  parsedArgs.get("dossiers") match {
+    case Some((numLow: Int, numHigh: Int)) => {
+      val dossiers = KamerstukkenScraper.scrapeDossierRange(numLow, numHigh)
+      println(dossiers.get.mkString("\n"))
+      Thread.sleep(1000) // This is necessary for sbt not to truncate the output. // TODO: Bug?
+    }
+    case Some(x) => println(s"An error occured: $x")
+    case None =>
   }
 }
