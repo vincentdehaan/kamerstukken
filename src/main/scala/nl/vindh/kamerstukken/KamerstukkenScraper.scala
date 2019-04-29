@@ -2,11 +2,11 @@ package nl.vindh.kamerstukken
 
 import java.util.NoSuchElementException
 
-import scala.concurrent.Future
 import net.ruippeixotog.scalascraper.browser.JsoupBrowser
 import net.ruippeixotog.scalascraper.dsl.DSL._
 import net.ruippeixotog.scalascraper.dsl.DSL.Extract._
-import net.ruippeixotog.scalascraper.dsl.DSL.Parse._
+
+import cats.implicits._
 
 import scala.util.{Failure, Success, Try}
 
@@ -24,26 +24,28 @@ object KamerstukkenScraper {
       case f => f
     }
 
-  def scrapeOneDossier(num: Int): Try[Dossier] =
-    for {
+  def scrapeOneDossier(num: Int): Try[Option[Dossier]] =
+    (for {
       doc <- getDoc(num)
       title <- scrapeDossierTitle(doc)
-    } yield Dossier(num, title)
+    } yield Some(Dossier(num, title)))
+      .recover {
+        case _: NoSuchElementException => None
+      }
+
+  def withLogging[U](interval: Int, logFun: Int => Unit): (Int => U) => (Int => U) = {
+    f =>
+      i => {
+        if (i % interval == 0) logFun(i)
+        f(i)
+      }
+  }
+
+  def withDefaultLogging[U] = withLogging[U](100, i => println(s"Scraping dossier $i"))
 
   def scrapeDossierRange(numLow: Int, numHigh: Int): Try[List[Dossier]] =
-    (numLow to numHigh).foldLeft(Success(List[Dossier]()).asInstanceOf[Try[List[Dossier]]]) {
-      case (Success(acc), nw) => {
-        if(nw % 100 == 0) println(s"Scraping dossier $nw ...")
-        scrapeOneDossier(nw) match {
-          case Success(dossier) => Success(dossier :: acc)
-          case Failure(_: NoSuchElementException) => Success(acc)
-          case f: Failure[Dossier] => f.asInstanceOf[Failure[List[Dossier]]] // This is not nice!
-        }
-      }
-      case (f, _) => f
-    }
-    /*for { // How to do this using a ?? monad transformer ??
-      num <- numLow to numHigh
-      dossier <- scrapeOneDossier(num)
-    } yield dossier*/
+    (numLow to numHigh)
+      .map(withDefaultLogging(scrapeOneDossier)).toList
+      .sequence
+      .map(_.flatten)
 }

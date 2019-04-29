@@ -1,5 +1,8 @@
 package nl.vindh.kamerstukken
 
+// TODO: some dossiers (for example, 35168) do not get the right title
+// TODO: println prints strange characters (for example, 35176)
+
 object Main extends App {
   val usage =
     """
